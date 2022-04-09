@@ -30,6 +30,8 @@ from wittypiutilities import update_wittypi_schedule
 from write_csv import write_csv
 from measurement import measure_all_sensors
 from thingspeak import transfer_all_channels_to_ts
+from mqtt import publish_all_mqtt_topics
+
 
 logger = logging.getLogger('HoneyPi.read_and_upload_all')
 superglobal = superglobal.SuperGlobal()
@@ -49,12 +51,26 @@ def manage_transfer_to_ts(ts_channels, ts_fields, server_url, offline, debug, ts
         return connectionErrorHappened
     except Exception as ex:
         logger.exception("Exception during manage_transfer_to_ts")
+        
+def manage_transfer_to_mqtt(mqtt_data, mqtt_server, offline, debug):
+    try:
+        # update ThingSpeak / transfer values
+        connectionErrorHappened = publish_all_mqtt_topics(mqtt_data, mqtt_server, offline, debug)
 
-def measure(q, offline, debug, ts_channels, ts_server_url, filtered_temperature, ds18b20Sensors, bme680Sensors, bme680Inits, dhtSensors, aht10Sensors, sht31Sensors, sht25Sensors, hdc1008Sensors, bh1750Sensors, tcSensors, bme280Sensors, pcf8591Sensors, ee895Sensors, gpsSensors, weightSensors, hxInits, connectionErrors, measurementIsRunning):
+        return connectionErrorHappened
+    except Exception as ex:
+        logger.exception("Exception during manage_transfer_to_mqtt")
+
+def measure(q, offline, debug, ts_channels, ts_server_url, mqtt_server, filtered_temperature, ds18b20Sensors, bme680Sensors, bme680Inits, dhtSensors, aht10Sensors, sht31Sensors, sht25Sensors, hdc1008Sensors, bh1750Sensors, tcSensors, bme280Sensors, pcf8591Sensors, ee895Sensors, gpsSensors, weightSensors, hxInits, connectionErrors, measurementIsRunning):
     measurementIsRunning.value = 1 # set flag
     ts_fields = {}
     try:
-        ts_fields, bme680Inits = measure_all_sensors(debug, filtered_temperature, ds18b20Sensors, bme680Sensors, bme680Inits, dhtSensors, aht10Sensors, sht31Sensors, sht25Sensors, hdc1008Sensors, bh1750Sensors, tcSensors, bme280Sensors, pcf8591Sensors, ee895Sensors, gpsSensors, weightSensors, hxInits)
+        ts_fields, mqtt_data, bme680Inits = measure_all_sensors(debug, filtered_temperature, ds18b20Sensors, bme680Sensors, bme680Inits, dhtSensors, aht10Sensors, sht31Sensors, sht25Sensors, hdc1008Sensors, bh1750Sensors, tcSensors, bme280Sensors, pcf8591Sensors, ee895Sensors, gpsSensors, weightSensors, hxInits)
+        
+        #TODO: Add MQTT Sending routine
+        if len(mqtt_data) > 0:
+            manage_transfer_to_mqtt(mqtt_data, mqtt_server, offline, debug)
+        
         if len(ts_fields) > 0:
             ts_datetime=thingspeak_datetime()
             if offline == 1 or offline == 3:
@@ -178,6 +194,7 @@ def start_measurement(measurement_stop):
 
         ts_channels = settings["ts_channels"] # ThingSpeak data (ts_channel_id, ts_write_key)
         ts_server_url = settings["ts_server_url"]
+        mqtt_server = settings["mqtt_server"]
         debuglevel = settings["debuglevel"]
         if debuglevel <= 10:
             debug = True # flag to enable debug mode (HDMI output enabled and no rebooting)
@@ -301,7 +318,7 @@ def start_measurement(measurement_stop):
 
                 if startNewMeasurement:
                     q = Queue()
-                    p = Process(target=measure, args=(q, offline, debug, ts_channels, ts_server_url, filtered_temperature, ds18b20Sensors, bme680Sensors, bme680Inits, dhtSensors, aht10Sensors, sht31Sensors, sht25Sensors, hdc1008Sensors, bh1750Sensors, tcSensors, bme280Sensors, pcf8591Sensors, ee895Sensors, gpsSensors, weightSensors, hxInits, connectionErrors, measurementIsRunning))
+                    p = Process(target=measure, args=(q, offline, debug, ts_channels, ts_server_url, mqtt_server, filtered_temperature, ds18b20Sensors, bme680Sensors, bme680Inits, dhtSensors, aht10Sensors, sht31Sensors, sht25Sensors, hdc1008Sensors, bh1750Sensors, tcSensors, bme280Sensors, pcf8591Sensors, ee895Sensors, gpsSensors, weightSensors, hxInits, connectionErrors, measurementIsRunning))
                     p.start()
 
                     # determine timeout value for Process.join()

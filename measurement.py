@@ -37,7 +37,8 @@ logger = logging.getLogger('HoneyPi.measurement')
 
 def measure_all_sensors(debug, filtered_temperature, ds18b20Sensors, bme680Sensors, bme680Inits, dhtSensors, aht10Sensors, sht31Sensors, sht25Sensors, hdc1008Sensors, bh1750Sensors, tcSensors, bme280Sensors, pcf8591Sensors, ee895Sensors, gpsSensors, weightSensors, hxInits):
 
-    ts_fields = {} # dict with all fields and values which will be tranfered to ThingSpeak later
+    ts_fields = {} # dict with all fields and values which will be transfered to ThingSpeak later
+    mqtt_data = {} # dict with all mqtt Topics and values which will be transfered to MQTT later
     global burn_in_time
     try:
 
@@ -59,6 +60,8 @@ def measure_all_sensors(debug, filtered_temperature, ds18b20Sensors, bme680Senso
                             ds18b20_temperature = ds18b20_temperature-float(sensor["offset"])
                         ds18b20_temperature = float("{0:.2f}".format(ds18b20_temperature)) # round to two decimals
                         ts_fields.update({sensor["ts_field"]: ds18b20_temperature})
+                        mqtt_data.update({sensor["mqtt_topic"]: ds18b20_temperature}) 
+
                 elif 'ts_field' in sensor:
                     # Case for filtered_temperature was not filled, use direct measured temperture in this case
                     ds18b20_temperature = measure_temperature(sensor)
@@ -67,6 +70,8 @@ def measure_all_sensors(debug, filtered_temperature, ds18b20Sensors, bme680Senso
                             ds18b20_temperature = ds18b20_temperature-float(sensor["offset"])
                         ds18b20_temperature = float("{0:.2f}".format(ds18b20_temperature)) # round to two decimals
                         ts_fields.update({sensor["ts_field"]: ds18b20_temperature})
+                        mqtt_data.update({sensor["mqtt_topic"]: ds18b20_temperature})
+                        
         except Exception as ex:
             logger.exception("Unhandled Exception in measure_all_sensors / ds18b20Sensors")
 
@@ -75,6 +80,7 @@ def measure_all_sensors(debug, filtered_temperature, ds18b20Sensors, bme680Senso
             gps_values = measure_gps(gpsSensors[0])
             if gps_values is not None:
                 ts_fields.update(gps_values)
+                #TODO: MQTT
 
         # measure BME680 (can only be two) [type 1]
         for (sensorIndex, bme680Sensor) in enumerate(bme680Sensors):
@@ -84,6 +90,7 @@ def measure_all_sensors(debug, filtered_temperature, ds18b20Sensors, bme680Senso
                 gas_baseline = bme680Init['gas_baseline']
                 bme680_values, gas_baseline = measure_bme680(sensor, gas_baseline, bme680Sensor, burn_in_time)
                 ts_fields.update(bme680_values)
+                #TODO: MQTT
                 bme680Init['gas_baseline'] = gas_baseline
                 bme680Inits[sensorIndex]=bme680Init
 
@@ -95,60 +102,70 @@ def measure_all_sensors(debug, filtered_temperature, ds18b20Sensors, bme680Senso
                 tempAndHum = measure_dht(sensor)
             if tempAndHum is not None:
                 ts_fields.update(tempAndHum)
+                #TODO: MQTT
 
         # measure every sensor with type 4 [MAX6675]
         for (i, sensor) in enumerate(tcSensors):
             tc_temp = measure_tc(sensor)
             if tc_temp is not None:
                 ts_fields.update(tc_temp)
+                #TODO: MQTT
 
         # measure BME280 (can only be two) [type 5]
         for (sensorIndex, bme280Sensor) in enumerate(bme280Sensors):
             bme280_values = measure_bme280(bme280Sensor)
             if bme280_values is not None:
                 ts_fields.update(bme280_values)
+                #TODO: MQTT
 
         # measure every PCF8591 sensor [type 6]
         for (i, sensor) in enumerate(pcf8591Sensors):
             pcf8591_values = measure_pcf8591(sensor)
             if pcf8591_values is not None:
                 ts_fields.update(pcf8591_values)
+                #TODO: MQTT
 
         # measure EE895 (can only be one) [type 7]
         if ee895Sensors and len(ee895Sensors) == 1:
             ee895_values = measure_ee895(ee895Sensors[0])
             if ee895_values is not None:
                 ts_fields.update(ee895_values)
+                #TODO: MQTT
 
         # measure every HDC1080/HDC2080 sensor [type 8]
         for (i, sensor) in enumerate(hdc1008Sensors):
             hdc1008_fields = measure_hdc1008(sensor)
             if hdc1008_fields is not None:
                 ts_fields.update(hdc1008_fields)
+                #TODO: MQTT
 
         # measure every sht31 sensor [type 9]
         for (i, sensor) in enumerate(sht31Sensors):
             sht31_fields = measure_sht31(sensor)
             if sht31_fields is not None:
                 ts_fields.update(sht31_fields)
+                #TODO: MQTT
 
         # measure every AHT10 sensor [type 10]
         for (i, sensor) in enumerate(aht10Sensors):
             aht10_fields = measure_aht10(sensor)
             if aht10_fields is not None:
                 ts_fields.update(aht10_fields)
+                #TODO: MQTT
 
         # measure bh1750 (can only be one) [type 11]
         if bh1750Sensors and len(bh1750Sensors) == 1:
             bh1750_fields = measure_bh1750(bh1750Sensors[0])
             if bh1750_fields is not None:
                 ts_fields.update(bh1750_fields)
+                #TODO: MQTT
 
         # measure sht25 [type 12]
         for (i, sensor) in enumerate(sht25Sensors):
             sht25_fields = measure_hdc1008(sensor)
             if sht25_fields is not None:
                 ts_fields.update(sht25_fields)
+                #TODO: MQTT
 
         # all other sensors need to be measured first in case a temperature field is passed for compensation to HX711
         # measure every sensor with type 2 [HX711]
@@ -157,9 +174,11 @@ def measure_all_sensors(debug, filtered_temperature, ds18b20Sensors, bme680Senso
             if hxInits is not None:
                 hx711_fields = measure_hx711(sensor, ts_fields, hxInits[i])
                 ts_fields.update(hx711_fields)
+                #TODO: MQTT
             else:
                 hx711_fields = measure_hx711(sensor, ts_fields)
                 ts_fields.update(hx711_fields)
+                #TODO: MQTT
         stop_single()
 
         # print all measurement values stored in ts_fields
@@ -170,10 +189,10 @@ def measure_all_sensors(debug, filtered_temperature, ds18b20Sensors, bme680Senso
             for key, value in ts_fields.items():
                 ts_fields_content = ts_fields_content + key + ": " + str(value) + " "
             logger.debug(ts_fields_content)
-        return ts_fields, bme680Inits
+        return ts_fields, mqtt_data, bme680Inits
     except Exception as ex:
         logger.exception("Unhandled Exception in measure_all_sensors")
-        return ts_fields, bme680Inits
+        return ts_fields, mqtt_data, bme680Inits
 
 def measurement():
     # dict with all fields and values which will be tranfered to ThingSpeak later
