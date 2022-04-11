@@ -13,10 +13,53 @@ from datetime import datetime
 
 logger = logging.getLogger('HoneyPi.wittypiutilities')
 
-from wittypi import clear_startup_time, clear_shutdown_time, getAll, schedule_file_lines2schedule_file_data, verify_schedule_data, runscript, system_to_rtc
+from wittypi import clear_startup_time, clear_shutdown_time, getAll, schedule_file_lines2schedule_file_data, verify_schedule_data, runscript, system_to_rtc, rtc_to_system
 #from wittypi.runScript import runscript
 from utilities import is_service_active, get_abs_timedifference, getStateFromStorage
 from constant import homeFolder, backendFolder, wittypi_scheduleFileName, wittypi_scheduleFile, local_tz
+
+def get_wittyPiPath():
+    wittyPiPath = ''
+    try:
+        if os.path.exists(homeFolder + '/wittyPi'):
+            wittyPiPath = homeFolder + '/wittyPi'
+            logger.debug("wittyPi 2 or wittyPi Mini installation detected in: " + wittyPiPath)
+        elif os.path.exists(homeFolder + '/wittypi'):
+            wittyPiPath = homeFolder + '/wittypi'
+            logger.debug("wittypi 3 or 3 Mini installation detected in: " + wittyPiPath)
+    except Exception as ex:
+        logger.exception("Error in function get_wittyPiPath")
+    return wittyPiPath
+
+def remove_wittypi_internet_timesync():
+    already_done = False
+    try:
+        wittyPiPath = get_wittyPiPath()
+        if os.path.isfile(wittyPiPath + "/syncTime.sh"):
+            fp = open(wittyPiPath + "/syncTime.sh")
+            for i, line in enumerate(fp):
+                if i == 39 and line.strip().startswith("#"):
+                    already_done = True
+            if not already_done:
+                os.system("sudo sed -i '40s/net_to_system/# net_to_system/' " + wittyPiPath + "/syncTime.sh")
+                os.system("sudo sed -i '41s/system_to_rtc/# system_to_rtc/' " + wittyPiPath + "/syncTime.sh")
+    except Exception as ex:
+        logger.exception("Error in function remove_wittypi_internet_timesync")
+
+def add_wittypi_internet_timesync():
+    already_done = False
+    try:
+        wittyPiPath = get_wittyPiPath()
+        if os.path.isfile(wittyPiPath + "/syncTime.sh"):
+            fp = open(wittyPiPath + "/syncTime.sh")
+            for i, line in enumerate(fp):
+                if i == 39 and line.strip().startswith("net_to_system"):
+                    already_done = True
+            if not already_done:
+                os.system("sudo sed -i '40s/# net_to_system/net_to_system/' " + wittyPiPath + "/syncTime.sh")
+                os.system("sudo sed -i '41s/# system_to_rtc/system_to_rtc/' " + wittyPiPath + "/syncTime.sh")
+    except Exception as ex:
+        logger.exception("Error in function add_wittypi_internet_timesync")
 
 def set_wittypi_rtc(settings, wittypi_status):
     try:
@@ -99,7 +142,7 @@ def check_wittypi_rtc(settings, wittypi_status):
                 logger.critical("RTC time (" + wittypi_status['rtc_time_local'].strftime("%a %d %b %Y %H:%M:%S") +") has not been set before (stays in year 1999/2000).")
             else:
                 timenow = datetime.now(local_tz)
-                abs_timedelta_totalseconds = round(get_abs_timedifference(wittypi_status['rtc_time_local'], timenow))
+                abs_timedelta_totalseconds = round(get_abs_timedifference(timenow, wittypi_status['rtc_time_local']))
                 if abs_timedelta_totalseconds >= 300:
                     logger.critical("Difference between RTC time and sytstem time is " + str(abs_timedelta_totalseconds) + " seconds")
                 elif abs_timedelta_totalseconds >= 60:
@@ -213,14 +256,7 @@ def clear_wittypi_schedule():
 def set_wittypi_schedule():
     try:
         schedulefile_exists = os.path.isfile(wittypi_scheduleFile) and os.stat(wittypi_scheduleFile).st_size > 1 #existiert '/var/www/html/backend/schedule.wpi' und ist größer wie 1 Bit
-        wittyPiPath = ''
-        if os.path.exists(homeFolder + '/wittyPi'):
-            wittyPiPath = homeFolder + '/wittyPi'
-            logger.debug("wittyPi 2 or wittyPi Mini installation detected in: " + wittyPiPath)
-        elif os.path.exists(homeFolder + '/wittypi'):
-            wittyPiPath = homeFolder + '/wittypi'
-            logger.debug("wittypi 3 or 3 Mini installation detected in: " + wittyPiPath)
-
+        wittyPiPath = get_wittyPiPath()
         if os.path.isfile(wittyPiPath + '/wittyPi.sh') and os.path.isfile(wittyPiPath + '/syncTime.sh') and os.path.isfile(wittyPiPath + '/runScript.sh'):
             if schedulefile_exists:
                 copy_wittypi_schedulefile(wittypi_scheduleFile, wittyPiPath + wittypi_scheduleFileName) #Kopieren von '/var/www/html/backend/schedule.wpi' nach 'home/pi/wittipi/schedule.wpi'
