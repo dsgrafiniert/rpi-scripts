@@ -197,6 +197,7 @@ def measure_all_sensors(debug, filtered_temperature, ds18b20Sensors, bme680Senso
 def measurement():
     # dict with all fields and values which will be tranfered to ThingSpeak later
     ts_fields = {}
+    mqtt_data = {}
     global burn_in_time
     try:
 
@@ -258,12 +259,12 @@ def measurement():
         for (sensorIndex, gpsSensor) in enumerate(gpsSensors):
             init_gps(gpsSensor)
 
-        ts_fields, bme680Inits = measure_all_sensors(False, None, ds18b20Sensors, bme680Sensors, bme680Inits, dhtSensors, aht10Sensors, sht31Sensors, sht25Sensors, hdc1008Sensors, bh1750Sensors, tcSensors, bme280Sensors, pcf8591Sensors, ee895Sensors, gpsSensors, weightSensors, None)
+        ts_fields, mqtt_data, bme680Inits = measure_all_sensors(False, None, ds18b20Sensors, bme680Sensors, bme680Inits, dhtSensors, aht10Sensors, sht31Sensors, sht25Sensors, hdc1008Sensors, bh1750Sensors, tcSensors, bme280Sensors, pcf8591Sensors, ee895Sensors, gpsSensors, weightSensors, None)
 
     except Exception as ex:
         logger.exception("Unhandled Exception in direct measurement")
 
-    return json.dumps(ts_fields)
+    return json.dumps(ts_fields), json.dumps(mqtt_data)
 
 if __name__ == '__main__':
     try:
