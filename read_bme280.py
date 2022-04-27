@@ -11,7 +11,7 @@ logger = logging.getLogger('HoneyPi.read_bme280')
 
 def measure_bme280(ts_sensor):
     fields = {}
-
+    mqtt_fields = {}
     i2c_addr = 0x76 # default value
     offset = 0
 
@@ -33,13 +33,17 @@ def measure_bme280(ts_sensor):
                 offset = float(ts_sensor["offset"])
                 temperature = temperature-offset
             fields[ts_sensor["ts_field_temperature"]] = round(temperature, 1)
+            mqtt_fields['temperature'] = round(temperature, 1)
         if 'ts_field_humidity' in ts_sensor and isinstance(humidity, (int, float)):
             fields[ts_sensor["ts_field_humidity"]] = round(humidity, 1)
+            mqtt_fields["humidity"] = round(humidity, 1)
         if 'ts_field_absolutehumidity' in ts_sensor and isinstance(humidity, (int, float)) and isinstance(temperature, (int, float)):
             absoluteHumidity = computeAbsoluteHumidity(humidity, temperature)
             fields[ts_sensor["ts_field_absolutehumidity"]] = absoluteHumidity
+            mqtt_fields["absolutehumidity"] = absoluteHumidity
         if 'ts_field_air_pressure' in ts_sensor and isinstance(pressure, (int, float)):
             fields[ts_sensor["ts_field_air_pressure"]] = round(pressure, 1)
+            mqtt_fields["pressure"] = round(pressure, 1)
     except IOError as ex:
         if str(ex) == "[Errno 121] Remote I/O error":
             logger.error("Could not access BME280 Sensor on I2C Adress " + format(i2c_addr, "x") + "!")
@@ -50,4 +54,4 @@ def measure_bme280(ts_sensor):
     except Exception as ex:
         logger.exception("Unhandled Exception in measure_bme280")
 
-    return fields
+    return fields, mqtt_fields

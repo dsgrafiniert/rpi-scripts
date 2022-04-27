@@ -28,8 +28,8 @@ def publish_all_mqtt_topics(mqtt_data, mqtt_server, offline, debug):
             topic_id = topic["ts_channel_id"]
             if topic_id:
                 logger.info('Topic ' + str(topic_index) + ' with ID ' + str(topic_id) + ' transfer with source IP ' + defaultgatewayinterfaceip + ' using default gateway on ' + str(defaultgatewayinterface))
-                    connectionError = publish_single_topic(topic, client, debug)
-                    connectionErrorWithinAnyChannel.append(connectionError)
+                connectionError = publish_single_topic(topic, client, debug)
+                connectionErrorWithinAnyChannel.append(connectionError)
             else:
                 logger.warning("No MQTT publish for this topic (" + str(topic_index) + ") because because topic_id is None.")
 
@@ -48,10 +48,8 @@ def publish_single_topic(topic, client, debug):
         try:
             # convert_lorawan(ts_fields_cleaned)
             msg_info = client.publish(topic.channel, topic.message, qos=1)
-                            if msg_info.is_published() == False:
-                                    msg_info.wait_for_publish()
-                                    
-                                    
+            if msg_info.is_published() == False:
+                msg_info.wait_for_publish()                    
             if debug:
                 logger.debug("Data succesfully transfered to ThingSpeak. " + response)
             else:

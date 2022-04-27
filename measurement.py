@@ -113,11 +113,13 @@ def measure_all_sensors(debug, filtered_temperature, ds18b20Sensors, bme680Senso
 
         # measure BME280 (can only be two) [type 5]
         for (sensorIndex, bme280Sensor) in enumerate(bme280Sensors):
-            bme280_values = measure_bme280(bme280Sensor)
+            bme280_values, bme280_mqtt_values  = measure_bme280(bme280Sensor)
+            if sensor["mqtt_topic"] is not None:
+                for (key, value) in bme280_mqtt_values.items():
+                    mqtt_fields.update({sensor["mqtt_topic"]+key: value })
             if bme280_values is not None:
                 ts_fields.update(bme280_values)
-                #TODO: MQTT
-
+                
         # measure every PCF8591 sensor [type 6]
         for (i, sensor) in enumerate(pcf8591Sensors):
             pcf8591_values = measure_pcf8591(sensor)
