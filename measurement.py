@@ -60,7 +60,7 @@ def measure_all_sensors(debug, filtered_temperature, ds18b20Sensors, bme680Senso
                             ds18b20_temperature = ds18b20_temperature-float(sensor["offset"])
                         ds18b20_temperature = float("{0:.2f}".format(ds18b20_temperature)) # round to two decimals
                         ts_fields.update({sensor["ts_field"]: ds18b20_temperature})
-                        mqtt_data.update({sensor["mqtt_topic"]: ds18b20_temperature}) 
+                        mqtt_data.update({sensor["mqtt_topic"]+"temperature": ds18b20_temperature}) 
 
                 elif 'ts_field' in sensor:
                     # Case for filtered_temperature was not filled, use direct measured temperture in this case
@@ -70,7 +70,7 @@ def measure_all_sensors(debug, filtered_temperature, ds18b20Sensors, bme680Senso
                             ds18b20_temperature = ds18b20_temperature-float(sensor["offset"])
                         ds18b20_temperature = float("{0:.2f}".format(ds18b20_temperature)) # round to two decimals
                         ts_fields.update({sensor["ts_field"]: ds18b20_temperature})
-                        mqtt_data.update({sensor["mqtt_topic"]: ds18b20_temperature})
+                        mqtt_data.update({sensor["mqtt_topic"]+"temperature": ds18b20_temperature})
                         
         except Exception as ex:
             logger.exception("Unhandled Exception in measure_all_sensors / ds18b20Sensors")
@@ -114,9 +114,9 @@ def measure_all_sensors(debug, filtered_temperature, ds18b20Sensors, bme680Senso
         # measure BME280 (can only be two) [type 5]
         for (sensorIndex, bme280Sensor) in enumerate(bme280Sensors):
             bme280_values, bme280_mqtt_values  = measure_bme280(bme280Sensor)
-            if sensor["mqtt_topic"] is not None:
+            if "mqtt_topic" in bme280Sensor and bme280Sensor["mqtt_topic"] is not None:
                 for (key, value) in bme280_mqtt_values.items():
-                    mqtt_fields.update({sensor["mqtt_topic"]+key: value })
+                    mqtt_data.update({bme280Sensor["mqtt_topic"]+key: value })
             if bme280_values is not None:
                 ts_fields.update(bme280_values)
                 
@@ -265,8 +265,8 @@ def measurement():
 
     except Exception as ex:
         logger.exception("Unhandled Exception in direct measurement")
-
-    return json.dumps(ts_fields), json.dumps(mqtt_data)
+    logger.info(mqtt_data)
+    return json.dumps(ts_fields)
 
 if __name__ == '__main__':
     try:

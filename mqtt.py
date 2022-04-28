@@ -8,7 +8,7 @@ import json
 import paho.mqtt.client as mqttClient
 
 
-logger = logging.getLogger('HoneyPi.thingspeak')
+logger = logging.getLogger('HoneyPi.mqtt')
 
 def publish_all_mqtt_topics(mqtt_data, mqtt_server, offline, debug):
     try:
@@ -22,38 +22,34 @@ def publish_all_mqtt_topics(mqtt_data, mqtt_server, offline, debug):
                 defaultgatewayinterfaceip = ""
         connectionErrorWithinAnyChannel = []
         client = mqttClient.Client()
-        client.connect(mqtt_server["server_url"])
-        
-        for (topic_index, topic) in enumerate(mqtt_data, 0):
-            topic_id = topic["ts_channel_id"]
-            if topic_id:
-                logger.info('Topic ' + str(topic_index) + ' with ID ' + str(topic_id) + ' transfer with source IP ' + defaultgatewayinterfaceip + ' using default gateway on ' + str(defaultgatewayinterface))
-                connectionError = publish_single_topic(topic, client, debug)
-                connectionErrorWithinAnyChannel.append(connectionError)
-            else:
-                logger.warning("No MQTT publish for this topic (" + str(topic_index) + ") because because topic_id is None.")
-
+        client.connect(mqtt_server.get("server_url"))
+        client.loop_start()
+        for (key, value) in mqtt_data.items():
+            logger.debug('Topic ' + str(key) + ' with value ' + str(value) + ' transfer with source IP ' + defaultgatewayinterfaceip + ' using default gateway on ' + str(defaultgatewayinterface))
+            connectionError = publish_single_topic(key, value, client, debug)
+            connectionErrorWithinAnyChannel.append(connectionError)
+        client.loop_stop()
         client.disconnect()
         return any(c == True for c in connectionErrorWithinAnyChannel)
     except Exception as ex:
         logger.exception("Exception in publish_all_mqtt_topics")
 
-def publish_single_topic(topic, client, debug):
+def publish_single_topic(topic, value, client, debug):
     # do-while to retry failed transfer
     retries = 0
     MAX_RETRIES = 3
     isConnectionError = True
-    logger.debug("Start of publish_single_topic")
+    logger.info("Start of publish_single_topic")
     while isConnectionError:
         try:
             # convert_lorawan(ts_fields_cleaned)
-            msg_info = client.publish(topic.channel, topic.message, qos=1)
+            msg_info = client.publish(topic, value, qos=1)
             if msg_info.is_published() == False:
                 msg_info.wait_for_publish()                    
             if debug:
-                logger.debug("Data succesfully transfered to ThingSpeak. " + response)
+                logger.debug("Data succesfully transfered to MQTT. " + response)
             else:
-                logger.info("Data succesfully transfered to ThingSpeak.")
+                logger.info("Data succesfully transfered to MQTT.")
             # break because transfer succeded
             isConnectionError = False
             break
@@ -70,27 +66,3 @@ def publish_single_topic(topic, client, debug):
                 client.reconnect()
 
     return isConnectionError
-
-def thingspeak_update(write_key, data, server_url='https://api.thingspeak.com', ts_datetime=None, timeout=15, fmt='json'):
-    """Update channel feed.
-
-    Full reference:
-    https://mathworks.com/help/thingspeak/update-channel-feed.html
-    """
-    logger.debug("Start of thingspeak_update")
-    if write_key is not None:
-        data['api_key'] = write_key
-    if ts_datetime is not None:
-        data['created_at'] = ts_datetime
-    url = '{ts}/update.{fmt}'.format(
-        ts=server_url,
-        fmt=fmt,
-    )
-    logger.debug("Start of post request")
-    response = requests.post(url, params=data, timeout=timeout)
-    response.raise_for_status()
-    logger.debug("End of post request")
-    if fmt == 'json':
-        return json.dumps(response.json())
-    else:
-        return response.text

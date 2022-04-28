@@ -55,6 +55,7 @@ def manage_transfer_to_ts(ts_channels, ts_fields, server_url, offline, debug, ts
 def manage_transfer_to_mqtt(mqtt_data, mqtt_server, offline, debug):
     try:
         # update ThingSpeak / transfer values
+        logger.info(json.dumps(mqtt_data))
         connectionErrorHappened = publish_all_mqtt_topics(mqtt_data, mqtt_server, offline, debug)
 
         return connectionErrorHappened
@@ -68,6 +69,7 @@ def measure(q, offline, debug, ts_channels, ts_server_url, mqtt_server, filtered
         ts_fields, mqtt_data, bme680Inits = measure_all_sensors(debug, filtered_temperature, ds18b20Sensors, bme680Sensors, bme680Inits, dhtSensors, aht10Sensors, sht31Sensors, sht25Sensors, hdc1008Sensors, bh1750Sensors, tcSensors, bme280Sensors, pcf8591Sensors, ee895Sensors, gpsSensors, weightSensors, hxInits)
         
         #TODO: Add MQTT Sending routine
+        logger.info(mqtt_data)
         if len(mqtt_data) > 0:
             manage_transfer_to_mqtt(mqtt_data, mqtt_server, offline, debug)
         
